@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  storefront:
+    name: Storefront
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/storefront
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/storefront/package-lock.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Type check
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+
+  api:
+    name: API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore
+        run: dotnet restore services/api/Nooshora.Api.csproj
+      - name: Build
+        run: dotnet build services/api/Nooshora.Api.csproj --configuration Release --no-restore
+
+  admin:
+    name: Admin Flutter
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.7
+          channel: stable
+          cache: true
+      - name: Generate platform runners
+        run: flutter create --platforms=android,web --project-name nooshora_admin .
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
+      - name: Build web
+        run: flutter build web --release
+      - name: Build Android test APK
+        run: flutter build apk --debug
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nooshora-admin-web
+          path: apps/admin/build/web
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nooshora-admin-apk-debug
+          path: apps/admin/build/app/outputs/flutter-apk/app-debug.apk
