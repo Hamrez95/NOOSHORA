@@ -1,0 +1,12 @@
+{
+  "name": "پنل مدیریت نوشورا",
+  "short_name": "نوشورا",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F6F8F4",
+  "theme_color": "#3F6B45",
+  "description": "مدیریت سفارش، محصول، انبار و گزارش‌های نوشورا",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}
