@@ -24,7 +24,10 @@ class NooshoraPartnerDemoApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const Directionality(textDirection: TextDirection.rtl, child: DemoAdminShell()),
+      home: const Directionality(
+        textDirection: TextDirection.rtl,
+        child: DemoAdminShell(),
+      ),
     );
   }
 }
@@ -68,7 +71,9 @@ class _DemoAdminShellState extends State<DemoAdminShell> {
   void toggleProduct(String sku) {
     setState(() {
       products = products
-          .map((product) => product.sku == sku ? product.copyWith(published: !product.published) : product)
+          .map((product) => product.sku == sku
+              ? product.copyWith(published: !product.published)
+              : product)
           .toList();
     });
   }
@@ -119,12 +124,16 @@ class _DemoAdminShellState extends State<DemoAdminShell> {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 960;
-    final content = switch (selectedIndex) {
+    final page = switch (selectedIndex) {
       0 => DashboardView(orders: orders, products: products, batches: batches),
       1 => OrdersView(orders: orders, onAdvance: advanceOrder),
-      2 => ProductsView(products: products, onToggle: toggleProduct, onAdd: addDemoProduct),
+      2 => ProductsView(
+          products: products,
+          onToggle: toggleProduct,
+          onAdd: addDemoProduct,
+        ),
       3 => InventoryView(batches: batches, onReceive: receiveBatch),
-      _ => ReportsView(orders: orders, products: products, batches: batches),
+      _ => ReportsView(orders: orders),
     };
 
     return Scaffold(
@@ -149,61 +158,84 @@ class _DemoAdminShellState extends State<DemoAdminShell> {
             ),
       body: Row(
         children: [
-          if (wide)
-            Container(
-              width: 252,
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF25372A),
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: Column(
-                children: [
-                  const Padding(padding: EdgeInsets.all(12), child: DemoBrand(dark: true)),
-                  const SizedBox(height: 8),
-                  const DemoBanner(dark: true),
-                  const SizedBox(height: 18),
-                  for (var index = 0; index < destinations.length; index++)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: ListTile(
-                        selected: selectedIndex == index,
-                        selectedTileColor: const Color(0xFF4A7651),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        leading: Icon(
-                          destinations[index].icon,
-                          color: selectedIndex == index ? Colors.white : const Color(0xFFB9C8BC),
-                        ),
-                        title: Text(
-                          destinations[index].title,
-                          style: TextStyle(
-                            color: selectedIndex == index ? Colors.white : const Color(0xFFB9C8BC),
-                          ),
-                        ),
-                        onTap: () => setState(() => selectedIndex = index),
-                      ),
-                    ),
-                  const Spacer(),
-                  const ListTile(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                    leading: CircleAvatar(
-                      backgroundColor: Color(0xFFF1C792),
-                      child: Text('ح'),
-                    ),
-                    title: Text('حمیدرضا', style: TextStyle(color: Colors.white)),
-                    subtitle: Text('مدیر دمو', style: TextStyle(color: Color(0xFF9DAEA0))),
-                  ),
-                ],
-              ),
-            ),
+          if (wide) _DesktopSidebar(
+            destinations: destinations,
+            selectedIndex: selectedIndex,
+            onSelected: (value) => setState(() => selectedIndex = value),
+          ),
           Expanded(
             child: SafeArea(
               child: Padding(
                 padding: EdgeInsets.all(wide ? 24 : 14),
-                child: content,
+                child: page,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DesktopSidebar extends StatelessWidget {
+  const _DesktopSidebar({
+    required this.destinations,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final List<({String title, IconData icon})> destinations;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 252,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF25372A),
+        borderRadius: BorderRadius.circular(26),
+      ),
+      child: Column(
+        children: [
+          const Padding(padding: EdgeInsets.all(12), child: DemoBrand(dark: true)),
+          const DemoBanner(dark: true),
+          const SizedBox(height: 18),
+          for (var index = 0; index < destinations.length; index++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: ListTile(
+                selected: selectedIndex == index,
+                selectedTileColor: const Color(0xFF4A7651),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                leading: Icon(
+                  destinations[index].icon,
+                  color: selectedIndex == index
+                      ? Colors.white
+                      : const Color(0xFFB9C8BC),
+                ),
+                title: Text(
+                  destinations[index].title,
+                  style: TextStyle(
+                    color: selectedIndex == index
+                        ? Colors.white
+                        : const Color(0xFFB9C8BC),
+                  ),
+                ),
+                onTap: () => onSelected(index),
+              ),
+            ),
+          const Spacer(),
+          const ListTile(
+            contentPadding: EdgeInsets.symmetric(horizontal: 8),
+            leading: CircleAvatar(
+              backgroundColor: Color(0xFFF1C792),
+              child: Text('ح'),
+            ),
+            title: Text('حمیدرضا', style: TextStyle(color: Colors.white)),
+            subtitle: Text('مدیر دمو', style: TextStyle(color: Color(0xFF9DAEA0))),
           ),
         ],
       ),
@@ -231,7 +263,11 @@ class DemoBrand extends StatelessWidget {
           ),
           child: const Text(
             'ن',
-            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
         const SizedBox(width: 10),
@@ -240,11 +276,17 @@ class DemoBrand extends StatelessWidget {
           children: [
             Text(
               'مدیریت نوشورا',
-              style: TextStyle(fontWeight: FontWeight.w900, color: dark ? Colors.white : null),
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: dark ? Colors.white : null,
+              ),
             ),
             Text(
               'دموی ارائه شریک تجاری',
-              style: TextStyle(fontSize: 9, color: dark ? const Color(0xFFB7C7BA) : Colors.grey),
+              style: TextStyle(
+                fontSize: 9,
+                color: dark ? const Color(0xFFB7C7BA) : Colors.grey,
+              ),
             ),
           ],
         ),
@@ -262,6 +304,7 @@ class DemoBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: dark ? const Color(0xFF344A39) : const Color(0xFFFFE6C7),
@@ -281,7 +324,12 @@ class DemoBanner extends StatelessWidget {
 }
 
 class DashboardView extends StatelessWidget {
-  const DashboardView({super.key, required this.orders, required this.products, required this.batches});
+  const DashboardView({
+    super.key,
+    required this.orders,
+    required this.products,
+    required this.batches,
+  });
 
   final List<DemoOrder> orders;
   final List<DemoProduct> products;
@@ -289,8 +337,12 @@ class DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final revenue = orders.where((order) => order.state != 'لغوشده').fold<int>(0, (sum, order) => sum + order.payableToman);
-    final active = orders.where((order) => order.state != 'تحویل‌شده' && order.state != 'لغوشده').length;
+    final revenue = orders
+        .where((order) => order.state != 'لغوشده')
+        .fold<int>(0, (sum, order) => sum + order.payableToman);
+    final active = orders
+        .where((order) => order.state != 'تحویل‌شده' && order.state != 'لغوشده')
+        .length;
     final lowStock = products.where((product) => product.stock <= 8).length;
 
     return ListView(
@@ -304,21 +356,50 @@ class DashboardView extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: [
-            MetricCard(title: 'فروش امروز', value: '${toman(revenue)} تومان', icon: Icons.payments_rounded, tone: const Color(0xFFE5F0DF)),
-            MetricCard(title: 'سفارش فعال', value: '$active سفارش', icon: Icons.shopping_bag_rounded, tone: const Color(0xFFFFE5C8)),
-            MetricCard(title: 'هشدار موجودی', value: '$lowStock مورد', icon: Icons.inventory_rounded, tone: const Color(0xFFF5DCD0)),
-            MetricCard(title: 'بچ‌های فعال', value: '${batches.length} بچ', icon: Icons.qr_code_2_rounded, tone: const Color(0xFFE8E0F2)),
+            MetricCard(
+              title: 'فروش امروز',
+              value: '${toman(revenue)} تومان',
+              icon: Icons.payments_rounded,
+              tone: const Color(0xFFE5F0DF),
+            ),
+            MetricCard(
+              title: 'سفارش فعال',
+              value: '$active سفارش',
+              icon: Icons.shopping_bag_rounded,
+              tone: const Color(0xFFFFE5C8),
+            ),
+            MetricCard(
+              title: 'هشدار موجودی',
+              value: '$lowStock مورد',
+              icon: Icons.inventory_rounded,
+              tone: const Color(0xFFF5DCD0),
+            ),
+            MetricCard(
+              title: 'بچ‌های فعال',
+              value: '${batches.length} بچ',
+              icon: Icons.qr_code_2_rounded,
+              tone: const Color(0xFFE8E0F2),
+            ),
           ],
         ),
         const SizedBox(height: 20),
         LayoutBuilder(
           builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 850;
             final recentOrders = RecentOrdersCard(orders: orders.take(5).toList());
-            final stock = LowStockCard(products: products.where((product) => product.stock <= 10).toList());
-            return wide
-                ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(flex: 3, child: recentOrders), const SizedBox(width: 12), Expanded(flex: 2, child: stock)])
-                : Column(children: [recentOrders, const SizedBox(height: 12), stock]);
+            final stock = LowStockCard(
+              products: products.where((product) => product.stock <= 10).toList(),
+            );
+            if (constraints.maxWidth < 850) {
+              return Column(children: [recentOrders, const SizedBox(height: 12), stock]);
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 3, child: recentOrders),
+                const SizedBox(width: 12),
+                Expanded(flex: 2, child: stock),
+              ],
+            );
           },
         ),
       ],
@@ -330,14 +411,17 @@ class OrdersView extends StatelessWidget {
   const OrdersView({super.key, required this.orders, required this.onAdvance});
 
   final List<DemoOrder> orders;
-  final void Function(String id) onAdvance;
+  final ValueChanged<String> onAdvance;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PageHeading(title: 'سفارش‌ها', subtitle: 'چرخه دمو از پرداخت تا تحویل را با دکمه مرحله بعد نمایش بده.'),
+        const PageHeading(
+          title: 'سفارش‌ها',
+          subtitle: 'چرخه دمو از پرداخت تا تحویل را با دکمه مرحله بعد نمایش بده.',
+        ),
         const SizedBox(height: 16),
         Expanded(
           child: ListView.separated(
@@ -345,7 +429,11 @@ class OrdersView extends StatelessWidget {
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (_, index) {
               final order = orders[index];
-              final canAdvance = order.state == 'پرداخت‌شده' || order.state == 'در حال آماده‌سازی' || order.state == 'ارسال‌شده';
+              final canAdvance = const {
+                'پرداخت‌شده',
+                'در حال آماده‌سازی',
+                'ارسال‌شده',
+              }.contains(order.state);
               return Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -356,21 +444,26 @@ class OrdersView extends StatelessWidget {
                     runSpacing: 12,
                     children: [
                       SizedBox(
-                        width: 240,
+                        width: 220,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(order.id, style: const TextStyle(fontWeight: FontWeight.w900)),
-                            const SizedBox(height: 4),
-                            Text('${order.customer} · ${order.city}', style: const TextStyle(color: Colors.grey)),
+                            Text(
+                              '${order.customer} · ${order.city}',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
                           ],
                         ),
                       ),
-                      SizedBox(width: 150, child: Text('${toman(order.payableToman)} تومان', style: const TextStyle(fontWeight: FontWeight.w900))),
+                      Text(
+                        '${toman(order.payableToman)} تومان',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
                       StateChip(order.state),
-                      SizedBox(
-                        width: 180,
-                        child: Text(order.paymentReference, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                      Text(
+                        order.paymentReference,
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
                       ),
                       FilledButton.tonalIcon(
                         onPressed: canAdvance ? () => onAdvance(order.id) : null,
@@ -390,10 +483,15 @@ class OrdersView extends StatelessWidget {
 }
 
 class ProductsView extends StatelessWidget {
-  const ProductsView({super.key, required this.products, required this.onToggle, required this.onAdd});
+  const ProductsView({
+    super.key,
+    required this.products,
+    required this.onToggle,
+    required this.onAdd,
+  });
 
   final List<DemoProduct> products;
-  final void Function(String sku) onToggle;
+  final ValueChanged<String> onToggle;
   final VoidCallback onAdd;
 
   @override
@@ -401,22 +499,40 @@ class ProductsView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.end,
+          spacing: 18,
+          runSpacing: 12,
           children: [
-            const Expanded(child: PageHeading(title: 'محصولات', subtitle: 'انتشار، موجودی، قیمت و بسته فروش در یک نمای قابل ارائه')),
-            FilledButton.icon(onPressed: onAdd, icon: const Icon(Icons.add_rounded), label: const Text('محصول نمونه')),
+            const SizedBox(
+              width: 520,
+              child: PageHeading(
+                title: 'محصولات',
+                subtitle: 'انتشار، موجودی، قیمت و بسته فروش در یک نمای قابل ارائه',
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('محصول نمونه'),
+            ),
           ],
         ),
         const SizedBox(height: 16),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 1100 ? 3 : constraints.maxWidth >= 670 ? 2 : 1;
+              final columns = constraints.maxWidth >= 1100
+                  ? 3
+                  : constraints.maxWidth >= 670
+                      ? 2
+                      : 1;
               return GridView.builder(
                 itemCount: products.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: columns,
-                  mainAxisExtent: 245,
+                  mainAxisExtent: 255,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),
@@ -430,25 +546,48 @@ class ProductsView extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              CircleAvatar(backgroundColor: const Color(0xFFE7F0E1), child: Text(product.icon)),
+                              CircleAvatar(
+                                backgroundColor: const Color(0xFFE7F0E1),
+                                child: Text(product.icon),
+                              ),
                               const SizedBox(width: 10),
-                              Expanded(child: Text(product.title, style: const TextStyle(fontWeight: FontWeight.w900))),
+                              Expanded(
+                                child: Text(
+                                  product.title,
+                                  style: const TextStyle(fontWeight: FontWeight.w900),
+                                ),
+                              ),
                               Chip(label: Text(product.published ? 'منتشر' : 'پیش‌نویس')),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          Text('${product.category} · ${product.sku}', style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                          Text(
+                            '${product.category} · ${product.sku}',
+                            style: const TextStyle(color: Colors.grey, fontSize: 10),
+                          ),
                           const SizedBox(height: 10),
-                          Wrap(spacing: 7, runSpacing: 7, children: [
-                            InfoPill(product.packageLabel),
-                            InfoPill('${product.stock} بسته'),
-                            InfoPill('${toman(product.priceToman)} تومان'),
-                          ]),
+                          Wrap(
+                            spacing: 7,
+                            runSpacing: 7,
+                            children: [
+                              InfoPill(product.packageLabel),
+                              InfoPill('${product.stock} بسته'),
+                              InfoPill('${toman(product.priceToman)} تومان'),
+                            ],
+                          ),
                           const Spacer(),
                           Row(
                             children: [
-                              Expanded(child: Text(product.published ? 'قابل خرید در سایت' : 'فقط پنل مدیریت', style: const TextStyle(fontSize: 10, color: Colors.grey))),
-                              OutlinedButton(onPressed: () => onToggle(product.sku), child: Text(product.published ? 'خروج از فروش' : 'انتشار')),
+                              Expanded(
+                                child: Text(
+                                  product.published ? 'قابل خرید در سایت' : 'فقط پنل مدیریت',
+                                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                ),
+                              ),
+                              OutlinedButton(
+                                onPressed: () => onToggle(product.sku),
+                                child: Text(product.published ? 'خروج از فروش' : 'انتشار'),
+                              ),
                             ],
                           ),
                         ],
@@ -476,10 +615,24 @@ class InventoryView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.end,
+          spacing: 18,
+          runSpacing: 12,
           children: [
-            const Expanded(child: PageHeading(title: 'انبار و بچ‌ها', subtitle: 'ردیابی تأمین‌کننده، قیمت خرید، مانده و تاریخ مصرف')),
-            FilledButton.icon(onPressed: onReceive, icon: const Icon(Icons.add_business_rounded), label: const Text('ثبت ورود نمونه')),
+            const SizedBox(
+              width: 520,
+              child: PageHeading(
+                title: 'انبار و بچ‌ها',
+                subtitle: 'ردیابی تأمین‌کننده، قیمت خرید، مانده و تاریخ مصرف',
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: onReceive,
+              icon: const Icon(Icons.add_business_rounded),
+              label: const Text('ثبت ورود نمونه'),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -498,11 +651,23 @@ class InventoryView extends StatelessWidget {
                     spacing: 20,
                     runSpacing: 12,
                     children: [
-                      SizedBox(width: 190, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(batch.lot, style: const TextStyle(fontWeight: FontWeight.w900)), Text(batch.sku, style: const TextStyle(color: Colors.grey))])),
-                      SizedBox(width: 170, child: Text(batch.supplier)),
+                      SizedBox(
+                        width: 185,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(batch.lot, style: const TextStyle(fontWeight: FontWeight.w900)),
+                            Text(batch.sku, style: const TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                      Text(batch.supplier),
                       InfoPill('${batch.remaining} بسته مانده'),
-                      SizedBox(width: 145, child: Text('${toman(batch.unitCostToman)} تومان خرید')),
-                      SizedBox(width: 130, child: Text('مصرف تا ${batch.bestBefore}', style: const TextStyle(fontSize: 10))),
+                      Text('${toman(batch.unitCostToman)} تومان خرید'),
+                      Text(
+                        'مصرف تا ${batch.bestBefore}',
+                        style: const TextStyle(fontSize: 10),
+                      ),
                       StateChip(batch.status),
                     ],
                   ),
@@ -517,73 +682,116 @@ class InventoryView extends StatelessWidget {
 }
 
 class ReportsView extends StatelessWidget {
-  const ReportsView({super.key, required this.orders, required this.products, required this.batches});
+  const ReportsView({super.key, required this.orders});
 
   final List<DemoOrder> orders;
-  final List<DemoProduct> products;
-  final List<DemoBatch> batches;
 
   @override
   Widget build(BuildContext context) {
-    final revenue = orders.where((order) => order.state != 'لغوشده').fold<int>(0, (sum, order) => sum + order.payableToman);
-    final estimatedCost = orders.where((order) => order.state != 'لغوشده').fold<int>(0, (sum, order) => sum + order.estimatedCostToman);
-    final grossProfit = revenue - estimatedCost;
-    final margin = revenue == 0 ? 0 : (grossProfit / revenue * 100).round();
+    final validOrders = orders.where((order) => order.state != 'لغوشده');
+    final revenue = validOrders.fold<int>(0, (sum, order) => sum + order.payableToman);
+    final cost = validOrders.fold<int>(0, (sum, order) => sum + order.estimatedCostToman);
+    final profit = revenue - cost;
+    final margin = revenue == 0 ? 0 : (profit / revenue * 100).round();
 
     return ListView(
       children: [
-        const PageHeading(title: 'گزارش مدیریتی', subtitle: 'نمونه گزارش فروش، حاشیه سود و سلامت موجودی برای ارائه شریک'),
+        const PageHeading(
+          title: 'گزارش مدیریتی',
+          subtitle: 'نمونه گزارش فروش، حاشیه سود و سلامت موجودی برای ارائه شریک',
+        ),
         const SizedBox(height: 20),
-        Wrap(spacing: 12, runSpacing: 12, children: [
-          MetricCard(title: 'فروش ناخالص', value: '${toman(revenue)} تومان', icon: Icons.trending_up_rounded, tone: const Color(0xFFE5F0DF)),
-          MetricCard(title: 'بهای تقریبی کالا', value: '${toman(estimatedCost)} تومان', icon: Icons.price_check_rounded, tone: const Color(0xFFFFE5C8)),
-          MetricCard(title: 'سود ناخالص', value: '${toman(grossProfit)} تومان', icon: Icons.savings_rounded, tone: const Color(0xFFE8E0F2)),
-          MetricCard(title: 'حاشیه سود', value: '$margin٪', icon: Icons.pie_chart_rounded, tone: const Color(0xFFF5DCD0)),
-        ]),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            MetricCard(
+              title: 'فروش ناخالص',
+              value: '${toman(revenue)} تومان',
+              icon: Icons.trending_up_rounded,
+              tone: const Color(0xFFE5F0DF),
+            ),
+            MetricCard(
+              title: 'بهای تقریبی کالا',
+              value: '${toman(cost)} تومان',
+              icon: Icons.price_check_rounded,
+              tone: const Color(0xFFFFE5C8),
+            ),
+            MetricCard(
+              title: 'سود ناخالص',
+              value: '${toman(profit)} تومان',
+              icon: Icons.savings_rounded,
+              tone: const Color(0xFFE8E0F2),
+            ),
+            MetricCard(
+              title: 'حاشیه سود',
+              value: '$margin٪',
+              icon: Icons.pie_chart_rounded,
+              tone: const Color(0xFFF5DCD0),
+            ),
+          ],
+        ),
         const SizedBox(height: 18),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('فروش هفت روز اخیر · داده دمو', style: TextStyle(fontWeight: FontWeight.w900)),
-                const SizedBox(height: 22),
-                SizedBox(
-                  height: 220,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      for (final item in const [('ش', .42), ('ی', .58), ('د', .36), ('س', .72), ('چ', .64), ('پ', .9), ('ج', .78)])
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Expanded(
-                                  child: Align(
-                                    alignment: Alignment.bottomCenter,
-                                    child: FractionallySizedBox(
-                                      heightFactor: item.$2,
-                                      child: Container(decoration: BoxDecoration(color: const Color(0xFF5D865F), borderRadius: BorderRadius.circular(10))),
+        const WeeklyChart(),
+      ],
+    );
+  }
+}
+
+class WeeklyChart extends StatelessWidget {
+  const WeeklyChart({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const data = [('ش', .42), ('ی', .58), ('د', .36), ('س', .72), ('چ', .64), ('پ', .9), ('ج', .78)];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'فروش هفت روز اخیر · داده دمو',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              height: 220,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final item in data)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: FractionallySizedBox(
+                                  heightFactor: item.$2,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF5D865F),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Text(item.$1, style: const TextStyle(color: Colors.grey)),
-                              ],
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 8),
+                            Text(item.$1, style: const TextStyle(color: Colors.grey)),
+                          ],
                         ),
-                    ],
-                  ),
-                ),
-              ],
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -599,7 +807,12 @@ class PageHeading extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
         const SizedBox(height: 4),
         Text(subtitle, style: const TextStyle(color: Colors.grey)),
       ],
@@ -608,7 +821,13 @@ class PageHeading extends StatelessWidget {
 }
 
 class MetricCard extends StatelessWidget {
-  const MetricCard({super.key, required this.title, required this.value, required this.icon, required this.tone});
+  const MetricCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.tone,
+  });
 
   final String title;
   final String value;
@@ -619,17 +838,33 @@ class MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 245,
-      height: 132,
+      height: 158,
       child: Card(
+        margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(17),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(backgroundColor: tone, child: Icon(icon, color: const Color(0xFF3F6B45))),
+              CircleAvatar(
+                radius: 19,
+                backgroundColor: tone,
+                child: Icon(icon, size: 20, color: const Color(0xFF3F6B45)),
+              ),
               const Spacer(),
-              Text(title, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.grey, fontSize: 10),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              ),
             ],
           ),
         ),
@@ -651,15 +886,34 @@ class RecentOrdersCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('آخرین سفارش‌ها', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            const Text(
+              'آخرین سفارش‌ها',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+            ),
             const SizedBox(height: 12),
             for (final order in orders)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(backgroundColor: const Color(0xFFE8EFE3), child: Text(order.customer.substring(0, 1))),
+                leading: CircleAvatar(
+                  backgroundColor: const Color(0xFFE8EFE3),
+                  child: Text(order.customer.substring(0, 1)),
+                ),
                 title: Text(order.customer),
                 subtitle: Text('${order.id} · ${order.city}'),
-                trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [Text('${toman(order.payableToman)} تومان', style: const TextStyle(fontWeight: FontWeight.w800)), Text(order.state, style: const TextStyle(fontSize: 9, color: Colors.grey))]),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${toman(order.payableToman)} تومان',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      order.state,
+                      style: const TextStyle(fontSize: 9, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
           ],
         ),
@@ -681,12 +935,18 @@ class LowStockCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('نیازمند توجه', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            const Text(
+              'نیازمند توجه',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+            ),
             const SizedBox(height: 12),
             for (final product in products)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(backgroundColor: const Color(0xFFFFE6C7), child: Text('${product.stock}')),
+                leading: CircleAvatar(
+                  backgroundColor: const Color(0xFFFFE6C7),
+                  child: Text('${product.stock}'),
+                ),
                 title: Text(product.title),
                 subtitle: Text(product.sku),
                 trailing: const Icon(Icons.chevron_left_rounded),
@@ -726,7 +986,10 @@ class InfoPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(color: const Color(0xFFF0F3EC), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F3EC),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Text(text, style: const TextStyle(fontSize: 10)),
     );
   }
@@ -820,12 +1083,60 @@ class DemoBatch {
 }
 
 List<DemoOrder> seedOrders() => const [
-      DemoOrder(id: 'NS-1048', customer: 'سارا احمدی', city: 'تهران', payableToman: 1005000, estimatedCostToman: 682000, state: 'پرداخت‌شده', paymentReference: 'DEMO-PAY-82413'),
-      DemoOrder(id: 'NS-1047', customer: 'محمد رضایی', city: 'کرج', payableToman: 1290000, estimatedCostToman: 890000, state: 'در حال آماده‌سازی', paymentReference: 'DEMO-PAY-82402'),
-      DemoOrder(id: 'NS-1046', customer: 'نگار اکبری', city: 'اصفهان', payableToman: 775000, estimatedCostToman: 498000, state: 'ارسال‌شده', paymentReference: 'DEMO-PAY-82381'),
-      DemoOrder(id: 'NS-1045', customer: 'علی موسوی', city: 'شیراز', payableToman: 1580000, estimatedCostToman: 1030000, state: 'تحویل‌شده', paymentReference: 'DEMO-PAY-82340'),
-      DemoOrder(id: 'NS-1044', customer: 'مریم کریمی', city: 'رشت', payableToman: 650000, estimatedCostToman: 420000, state: 'تحویل‌شده', paymentReference: 'DEMO-PAY-82312'),
-      DemoOrder(id: 'NS-1043', customer: 'رضا نادری', city: 'تبریز', payableToman: 930000, estimatedCostToman: 601000, state: 'تحویل‌شده', paymentReference: 'DEMO-PAY-82298'),
+      DemoOrder(
+        id: 'NS-1048',
+        customer: 'سارا احمدی',
+        city: 'تهران',
+        payableToman: 1005000,
+        estimatedCostToman: 682000,
+        state: 'پرداخت‌شده',
+        paymentReference: 'DEMO-PAY-82413',
+      ),
+      DemoOrder(
+        id: 'NS-1047',
+        customer: 'محمد رضایی',
+        city: 'کرج',
+        payableToman: 1290000,
+        estimatedCostToman: 890000,
+        state: 'در حال آماده‌سازی',
+        paymentReference: 'DEMO-PAY-82402',
+      ),
+      DemoOrder(
+        id: 'NS-1046',
+        customer: 'نگار اکبری',
+        city: 'اصفهان',
+        payableToman: 775000,
+        estimatedCostToman: 498000,
+        state: 'ارسال‌شده',
+        paymentReference: 'DEMO-PAY-82381',
+      ),
+      DemoOrder(
+        id: 'NS-1045',
+        customer: 'علی موسوی',
+        city: 'شیراز',
+        payableToman: 1580000,
+        estimatedCostToman: 1030000,
+        state: 'تحویل‌شده',
+        paymentReference: 'DEMO-PAY-82340',
+      ),
+      DemoOrder(
+        id: 'NS-1044',
+        customer: 'مریم کریمی',
+        city: 'رشت',
+        payableToman: 650000,
+        estimatedCostToman: 420000,
+        state: 'تحویل‌شده',
+        paymentReference: 'DEMO-PAY-82312',
+      ),
+      DemoOrder(
+        id: 'NS-1043',
+        customer: 'رضا نادری',
+        city: 'تبریز',
+        payableToman: 930000,
+        estimatedCostToman: 601000,
+        state: 'تحویل‌شده',
+        paymentReference: 'DEMO-PAY-82298',
+      ),
     ];
 
 List<DemoProduct> seedProducts() => const [
