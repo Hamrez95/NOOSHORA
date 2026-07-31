@@ -8,6 +8,9 @@ void main() {
 
     expect(find.text('فروش امروز'), findsOneWidget);
     expect(find.text('سفارش جدید'), findsOneWidget);
-    expect(find.text('هشدار موجودی'), findsOneWidget);
+    expect(find.text('کاتالوگ'), findsOneWidget);
+    expect(find.text('متصل به API'), findsOneWidget);
+    expect(find.text('وضعیت پرداخت'), findsOneWidget);
+    expect(find.text('غیرفعال'), findsOneWidget);
   });
 }
