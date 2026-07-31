@@ -123,7 +123,7 @@ class _OwnerLoginPageState extends State<OwnerLoginPage> {
                       const SizedBox(height: 20),
                       Text('ورود مدیر نوشورا', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
                       const SizedBox(height: 6),
-                      const Text('برای مدیریت محصولات، سفارش‌ها و موجودی وارد حساب مالک شوید.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                      const Text('مدیریت محصولات، سفارش‌ها و موجودی', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
                       const SizedBox(height: 24),
                       TextFormField(
                         controller: email,
@@ -160,7 +160,7 @@ class _OwnerLoginPageState extends State<OwnerLoginPage> {
                         label: const Padding(padding: EdgeInsets.symmetric(vertical: 13), child: Text('ورود امن')),
                       ),
                       const SizedBox(height: 14),
-                      const Text('رمز و توکن در Git یا آدرس صفحه ذخیره نمی‌شوند. نشست پس از انقضا بسته خواهد شد.', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      const Text('رمز و توکن داخل کد یا آدرس صفحه ذخیره نمی‌شوند.', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: Colors.grey)),
                     ]),
                   ),
                 ),
@@ -223,11 +223,10 @@ class _SecureCatalogShellState extends State<SecureCatalogShell> {
   }
 
   Future<void> changeOrder(AdminOrder order, String target) async {
-    final label = _stateLabel(target);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('تغییر وضعیت به «$label»؟'),
+        title: Text('تغییر وضعیت به «${_stateLabel(target)}»؟'),
         content: Text('سفارش ${order.id.substring(0, 8)} برای ${order.customerName} به مرحله بعد منتقل می‌شود.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('انصراف')),
@@ -239,7 +238,6 @@ class _SecureCatalogShellState extends State<SecureCatalogShell> {
     setState(() => changingOrderId = order.id);
     try {
       await orderApi.transition(order.id, target);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('وضعیت سفارش به $label تغییر کرد.')));
       await loadAll();
     } catch (exception) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(exception.toString()), backgroundColor: Colors.red.shade700));
@@ -253,7 +251,7 @@ class _SecureCatalogShellState extends State<SecureCatalogShell> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('لغو سفارش پرداخت‌نشده؟'),
-        content: const Text('موجودی رزروشده به انبار بازمی‌گردد و این عملیات قابل بازگشت نیست.'),
+        content: const Text('موجودی رزروشده به انبار بازمی‌گردد.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('انصراف')),
           FilledButton.tonal(onPressed: () => Navigator.pop(context, true), child: const Text('لغو و آزادسازی موجودی')),
@@ -275,7 +273,6 @@ class _SecureCatalogShellState extends State<SecureCatalogShell> {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 920;
-    final content = _content();
     return Scaffold(
       appBar: AppBar(
         title: const Row(children: [_BrandMark(size: 38), SizedBox(width: 10), Text('مدیریت نوشورا')]),
@@ -287,19 +284,18 @@ class _SecureCatalogShellState extends State<SecureCatalogShell> {
       ),
       bottomNavigationBar: wide ? null : NavigationBar(selectedIndex: selectedIndex, destinations: destinations, onDestinationSelected: (index) => setState(() => selectedIndex = index)),
       body: Row(children: [
-        if (wide)
-          NavigationRail(
-            selectedIndex: selectedIndex,
-            onDestinationSelected: (index) => setState(() => selectedIndex = index),
-            labelType: NavigationRailLabelType.all,
-            groupAlignment: -0.8,
-            destinations: const [
-              NavigationRailDestination(icon: Icon(Icons.space_dashboard_rounded), label: Text('داشبورد')),
-              NavigationRailDestination(icon: Icon(Icons.receipt_long_rounded), label: Text('سفارش‌ها')),
-              NavigationRailDestination(icon: Icon(Icons.inventory_2_rounded), label: Text('محصولات')),
-            ],
-          ),
-        Expanded(child: SafeArea(child: Padding(padding: EdgeInsets.all(wide ? 24 : 14), child: content))),
+        if (wide) NavigationRail(
+          selectedIndex: selectedIndex,
+          onDestinationSelected: (index) => setState(() => selectedIndex = index),
+          labelType: NavigationRailLabelType.all,
+          groupAlignment: -0.8,
+          destinations: const [
+            NavigationRailDestination(icon: Icon(Icons.space_dashboard_rounded), label: Text('داشبورد')),
+            NavigationRailDestination(icon: Icon(Icons.receipt_long_rounded), label: Text('سفارش‌ها')),
+            NavigationRailDestination(icon: Icon(Icons.inventory_2_rounded), label: Text('محصولات')),
+          ],
+        ),
+        Expanded(child: SafeArea(child: Padding(padding: EdgeInsets.all(wide ? 24 : 14), child: _content()))),
       ]),
     );
   }
@@ -315,26 +311,26 @@ class _SecureCatalogShellState extends State<SecureCatalogShell> {
 
   Widget _dashboardView() {
     final data = dashboard!;
-    return CustomScrollView(slivers: [
-      SliverToBoxAdapter(child: _PageHeader(title: 'داشبورد عملیاتی', subtitle: '${OwnerSession.instance.email ?? 'مالک'} · داده زنده از PostgreSQL')),
-      SliverPadding(
-        padding: const EdgeInsets.only(top: 18),
-        sliver: SliverGrid.extent(
-          maxCrossAxisExtent: 290,
-          mainAxisExtent: 136,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          children: [
-            _MetricCard(title: 'فروش امروز', value: _formatToman(data.todayRevenue), suffix: 'تومان', icon: Icons.payments_rounded, tone: const Color(0xFFE7F1E2)),
-            _MetricCard(title: 'در انتظار پرداخت', value: '${data.awaitingPayment}', suffix: 'سفارش', icon: Icons.hourglass_top_rounded, tone: const Color(0xFFFFE8C8)),
-            _MetricCard(title: 'در حال پردازش', value: '${data.processing}', suffix: 'سفارش', icon: Icons.inventory_rounded, tone: const Color(0xFFF8DDD0)),
-            _MetricCard(title: 'ارسال‌شده', value: '${data.shipped}', suffix: 'سفارش', icon: Icons.local_shipping_rounded, tone: const Color(0xFFE8E1F3)),
-          ],
+    final cards = [
+      _MetricCard(title: 'فروش امروز', value: _formatToman(data.todayRevenue), suffix: 'تومان', icon: Icons.payments_rounded, tone: const Color(0xFFE7F1E2)),
+      _MetricCard(title: 'در انتظار پرداخت', value: '${data.awaitingPayment}', suffix: 'سفارش', icon: Icons.hourglass_top_rounded, tone: const Color(0xFFFFE8C8)),
+      _MetricCard(title: 'در حال پردازش', value: '${data.processing}', suffix: 'سفارش', icon: Icons.inventory_rounded, tone: const Color(0xFFF8DDD0)),
+      _MetricCard(title: 'ارسال‌شده', value: '${data.shipped}', suffix: 'سفارش', icon: Icons.local_shipping_rounded, tone: const Color(0xFFE8E1F3)),
+    ];
+    return LayoutBuilder(builder: (context, constraints) {
+      final columns = constraints.maxWidth >= 1150 ? 4 : constraints.maxWidth >= 620 ? 2 : 1;
+      return ListView(children: [
+        _PageHeader(title: 'داشبورد عملیاتی', subtitle: '${OwnerSession.instance.email ?? 'مالک'} · داده زنده از PostgreSQL'),
+        const SizedBox(height: 18),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: cards.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: columns, mainAxisExtent: 136, crossAxisSpacing: 12, mainAxisSpacing: 12),
+          itemBuilder: (context, index) => cards[index],
         ),
-      ),
-      SliverPadding(
-        padding: const EdgeInsets.only(top: 18),
-        sliver: SliverToBoxAdapter(child: Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const SizedBox(height: 18),
+        Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [const Expanded(child: Text('هشدارهای موجودی', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17))), Text('${data.lowStock.length} مورد', style: const TextStyle(color: Colors.grey))]),
           const SizedBox(height: 12),
           if (data.lowStock.isEmpty) const Text('موجودی بحرانی وجود ندارد.') else ...data.lowStock.map((item) => ListTile(
@@ -344,9 +340,9 @@ class _SecureCatalogShellState extends State<SecureCatalogShell> {
             subtitle: Text('${item.variantLabel} · ${item.sku}'),
             trailing: const Icon(Icons.warning_amber_rounded, color: Color(0xFFB06B26)),
           )),
-        ])))),
-      ),
-    ]);
+        ]))),
+      ]);
+    });
   }
 
   Widget _ordersView() {
@@ -363,8 +359,8 @@ class _SecureCatalogShellState extends State<SecureCatalogShell> {
       const SizedBox(height: 14),
       Expanded(child: orders.isEmpty ? const Center(child: Text('سفارشی در این وضعیت وجود ندارد.')) : ListView.separated(
         itemCount: orders.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, index) => _OrderCard(
+        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        itemBuilder: (context, index) => _OrderCard(
           order: orders[index],
           busy: changingOrderId == orders[index].id,
           onNext: orders[index].nextState == null ? null : () => changeOrder(orders[index], orders[index].nextState!),
@@ -384,7 +380,7 @@ class _SecureCatalogShellState extends State<SecureCatalogShell> {
         return GridView.builder(
           itemCount: products.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: columns, mainAxisExtent: 220, crossAxisSpacing: 12, mainAxisSpacing: 12),
-          itemBuilder: (_, index) {
+          itemBuilder: (context, index) {
             final product = products[index];
             return Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [Expanded(child: Text(product.title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16))), Chip(label: Text(product.isPublished ? 'منتشرشده' : 'پیش‌نویس'))]),
@@ -406,8 +402,7 @@ class _PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     Text(title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900)),
-    const SizedBox(height: 3),
-    Text(subtitle, style: const TextStyle(color: Colors.grey)),
+    const SizedBox(height: 3), Text(subtitle, style: const TextStyle(color: Colors.grey)),
   ]);
 }
 
@@ -420,10 +415,7 @@ class _MetricCard extends StatelessWidget {
   final Color tone;
   @override
   Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(17), child: Row(children: [
-    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(color: Colors.grey)), const Spacer(),
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 21)), Text(suffix, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-    ])),
+    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: Colors.grey)), const Spacer(), Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 21)), Text(suffix, style: const TextStyle(fontSize: 10, color: Colors.grey))])),
     Container(width: 48, height: 48, decoration: BoxDecoration(color: tone, borderRadius: BorderRadius.circular(15)), child: Icon(icon, color: const Color(0xFF3F6B45))),
   ])));
 }
@@ -436,28 +428,21 @@ class _OrderCard extends StatelessWidget {
   final VoidCallback? onCancel;
 
   @override
-  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Wrap(
-    spacing: 18,
-    runSpacing: 12,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    children: [
-      SizedBox(width: 245, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Expanded(child: Text(order.customerName, style: const TextStyle(fontWeight: FontWeight.w900))), _StateChip(state: order.state)]),
-        const SizedBox(height: 5),
-        Text('${order.city}، ${order.province} · ${order.mobile}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        Text('کد: ${order.id.substring(0, 8)} · ${order.lineCount} ردیف', style: const TextStyle(color: Colors.grey, fontSize: 11)),
-      ])),
-      SizedBox(width: 150, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('مبلغ سفارش', style: TextStyle(color: Colors.grey, fontSize: 11)),
-        Text('${_formatToman(order.payable)} تومان', style: const TextStyle(fontWeight: FontWeight.w900)),
-        if (order.paymentReference != null) Text(order.paymentReference!, style: const TextStyle(fontSize: 9, color: Colors.grey)),
-      ])),
-      if (busy) const SizedBox.square(dimension: 26, child: CircularProgressIndicator(strokeWidth: 2)) else ...[
-        if (onCancel != null) OutlinedButton.icon(onPressed: onCancel, icon: const Icon(Icons.cancel_outlined), label: const Text('لغو')),
-        if (onNext != null) FilledButton.icon(onPressed: onNext, icon: const Icon(Icons.arrow_back_rounded), label: Text(_nextActionLabel(order.nextState!))),
-      ],
+  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Wrap(spacing: 18, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center, children: [
+    SizedBox(width: 245, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [Expanded(child: Text(order.customerName, style: const TextStyle(fontWeight: FontWeight.w900))), _StateChip(state: order.state)]),
+      const SizedBox(height: 5), Text('${order.city}، ${order.province} · ${order.mobile}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+      Text('کد: ${order.id.substring(0, 8)} · ${order.lineCount} ردیف', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+    ])),
+    SizedBox(width: 160, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('مبلغ سفارش', style: TextStyle(color: Colors.grey, fontSize: 11)), Text('${_formatToman(order.payable)} تومان', style: const TextStyle(fontWeight: FontWeight.w900)),
+      if (order.paymentReference != null) Text(order.paymentReference!, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+    ])),
+    if (busy) const SizedBox.square(dimension: 26, child: CircularProgressIndicator(strokeWidth: 2)) else ...[
+      if (onCancel != null) OutlinedButton.icon(onPressed: onCancel, icon: const Icon(Icons.cancel_outlined), label: const Text('لغو')),
+      if (onNext != null) FilledButton.icon(onPressed: onNext, icon: const Icon(Icons.arrow_back_rounded), label: Text(_nextActionLabel(order.nextState!))),
     ],
-  )));
+  ])));
 }
 
 class _StateChip extends StatelessWidget {
@@ -480,11 +465,11 @@ class _BrandMark extends StatelessWidget {
 
 String _formatToman(num irr) => '${(irr / 10).round()}'.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => '٬');
 String _stateLabel(String state) => switch (state) {
-  'AwaitingPayment' => 'در انتظار پرداخت', 'Paid' => 'پرداخت‌شده', 'Preparing' => 'آماده‌سازی',
-  'Shipped' => 'ارسال‌شده', 'Delivered' => 'تحویل‌شده', 'Cancelled' => 'لغوشده', 'Expired' => 'منقضی', _ => state,
+  'AwaitingPayment' => 'در انتظار پرداخت', 'Paid' => 'پرداخت‌شده', 'Preparing' => 'آماده‌سازی', 'Shipped' => 'ارسال‌شده',
+  'Delivered' => 'تحویل‌شده', 'Cancelled' => 'لغوشده', 'Expired' => 'منقضی', _ => state,
 };
 String _nextActionLabel(String state) => switch (state) {'Preparing' => 'شروع آماده‌سازی', 'Shipped' => 'ثبت ارسال', 'Delivered' => 'ثبت تحویل', _ => 'مرحله بعد'};
 Color _stateColor(String state) => switch (state) {
   'Paid' => const Color(0xFFE7F1E2), 'Preparing' => const Color(0xFFFFE8C8), 'Shipped' => const Color(0xFFE8E1F3),
-  'Delivered' => const Color(0xFFDDF1ED), 'Cancelled' || 'Expired' => const Color(0xFFFFE7E2), _ => const Color(0xFFF2E7D6),
+  'Delivered' => const Color(0xFFDDF1ED), 'Cancelled' => const Color(0xFFFFE7E2), 'Expired' => const Color(0xFFFFE7E2), _ => const Color(0xFFF2E7D6),
 };
