@@ -12,6 +12,7 @@ builder.Services.AddCors(options => options.AddPolicy("Storefront", policy =>
 builder.Services.AddSingleton<ProductCatalog>();
 builder.Services.AddSingleton<CatalogDatabase>();
 builder.Services.AddAdminSecurity(builder.Configuration);
+builder.Services.AddCheckout();
 
 var app = builder.Build();
 app.UseExceptionHandler();
@@ -19,6 +20,7 @@ app.UseHttpsRedirection();
 app.UseCors("Storefront");
 app.UseRateLimiter();
 app.MapAdminSecurity();
+app.MapCheckout();
 
 var catalog = app.Services.GetRequiredService<ProductCatalog>();
 var database = app.Services.GetRequiredService<CatalogDatabase>();
