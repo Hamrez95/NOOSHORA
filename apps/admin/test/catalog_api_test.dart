@@ -3,13 +3,24 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:nooshora_admin/auth_session.dart';
 import 'package:nooshora_admin/catalog_api.dart';
 
 void main() {
+  setUp(() {
+    OwnerSession.instance.establish(
+      accessToken: 'test-token',
+      expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 10)),
+      email: 'owner@example.com',
+    );
+  });
+  tearDown(OwnerSession.instance.clear);
+
   test('fetchProducts uses admin endpoint and parses publication state', () async {
     late Uri requestedUri;
     final client = MockClient((request) async {
       requestedUri = request.url;
+      expect(request.headers['authorization'], 'Bearer test-token');
       return http.Response(
         jsonEncode([
           {
@@ -57,22 +68,16 @@ void main() {
     await api.setPublication('akbari', true);
 
     expect(captured.method, 'PATCH');
+    expect(captured.headers['authorization'], 'Bearer test-token');
     expect(captured.url.path, '/api/v1/products/akbari/publication');
     expect(jsonDecode(captured.body), {'isPublished': true});
   });
 
   test('new products default to draft', () {
     const command = CreateProductCommand(
-      title: 'کوکی',
-      slug: 'cookie',
-      category: 'سالم',
-      origin: 'نوشورا',
-      unitType: 'Count',
-      variants: [
-        CreateVariantCommand(sku: 'CK-1', quantity: 1, displayLabel: '۱ عدد', price: 1000, availablePackages: 2),
-      ],
+      title: 'کوکی', slug: 'cookie', category: 'سالم', origin: 'نوشورا', unitType: 'Count',
+      variants: [CreateVariantCommand(sku: 'CK-1', quantity: 1, displayLabel: '۱ عدد', price: 1000, availablePackages: 2)],
     );
-
     expect(command.toJson()['isPublished'], isFalse);
   });
 
@@ -85,14 +90,8 @@ void main() {
 
     final api = CatalogApiClient(client: client, baseUrl: 'https://api.test');
     const command = CreateProductCommand(
-      title: 'کوکی',
-      slug: 'cookie',
-      category: 'سالم',
-      origin: 'نوشورا',
-      unitType: 'Count',
-      variants: [
-        CreateVariantCommand(sku: 'CK-1', quantity: 1, displayLabel: '۱ عدد', price: 1000, availablePackages: 2),
-      ],
+      title: 'کوکی', slug: 'cookie', category: 'سالم', origin: 'نوشورا', unitType: 'Count',
+      variants: [CreateVariantCommand(sku: 'CK-1', quantity: 1, displayLabel: '۱ عدد', price: 1000, availablePackages: 2)],
     );
 
     expect(() => api.createProduct(command), throwsA(isA<CatalogApiException>().having((e) => e.message, 'message', 'SKU تکراری است.')));
