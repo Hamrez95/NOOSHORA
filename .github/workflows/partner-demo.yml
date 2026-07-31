@@ -24,7 +24,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Type check
         run: npm run typecheck
-      - name: Build standalone partner demo
+      - name: Build professional partner demo
         run: npm run build
         env:
           NOOSHORA_STATIC_EXPORT: 'true'
@@ -33,11 +33,11 @@ jobs:
       - name: Upload partner storefront
         uses: actions/upload-artifact@v4
         with:
-          name: nooshora-partner-storefront
+          name: nooshora-partner-storefront-v2
           path: apps/storefront/out
 
   admin-demo:
-    name: Partner Admin Demo
+    name: Professional Partner Admin Demo
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,10 +57,10 @@ jobs:
         run: flutter analyze
       - name: Run tests
         run: flutter test
-      - name: Build standalone partner admin
-        run: flutter build web --release --target lib/demo_main.dart
+      - name: Build professional partner admin
+        run: flutter build web --release --target lib/professional_demo_main.dart
       - name: Upload partner admin
         uses: actions/upload-artifact@v4
         with:
-          name: nooshora-partner-admin
+          name: nooshora-partner-admin-v2
           path: apps/admin/build/web
