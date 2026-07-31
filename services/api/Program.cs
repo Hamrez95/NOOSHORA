@@ -17,6 +17,7 @@ builder.Services.AddSingleton<CatalogDatabase>();
 builder.Services.AddAdminSecurity(builder.Configuration);
 builder.Services.AddCheckout();
 builder.Services.AddPayments();
+builder.Services.AddOrderManagement();
 
 var app = builder.Build();
 app.UseExceptionHandler();
@@ -26,6 +27,7 @@ app.UseRateLimiter();
 app.MapAdminSecurity();
 app.MapCheckout();
 app.MapPayments();
+app.MapOrderManagement();
 
 var catalog = app.Services.GetRequiredService<ProductCatalog>();
 var database = app.Services.GetRequiredService<CatalogDatabase>();
