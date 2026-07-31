@@ -6,37 +6,74 @@ import 'package:http/testing.dart';
 import 'package:nooshora_admin/catalog_api.dart';
 
 void main() {
-  test('fetchProducts parses weighted and counted products', () async {
-    final client = MockClient((request) async => http.Response(
-          jsonEncode([
-            {
-              'id': '1',
-              'title': 'پسته اکبری',
-              'slug': 'akbari',
-              'category': 'مغزیجات',
-              'origin': 'رفسنجان',
-              'unitType': 'Weight',
-              'variants': [
-                {
-                  'sku': 'AK-250',
-                  'quantity': 250,
-                  'baseUnit': 'gram',
-                  'displayLabel': '۲۵۰ گرم',
-                  'price': 100000,
-                  'availablePackages': 4,
-                }
-              ],
-            }
-          ]),
-          200,
-          headers: {'content-type': 'application/json; charset=utf-8'},
-        ));
+  test('fetchProducts uses admin endpoint and parses publication state', () async {
+    late Uri requestedUri;
+    final client = MockClient((request) async {
+      requestedUri = request.url;
+      return http.Response(
+        jsonEncode([
+          {
+            'id': '1',
+            'title': 'پسته اکبری',
+            'slug': 'akbari',
+            'category': 'مغزیجات',
+            'origin': 'رفسنجان',
+            'unitType': 'Weight',
+            'isPublished': false,
+            'variants': [
+              {
+                'sku': 'AK-250',
+                'quantity': 250,
+                'baseUnit': 'gram',
+                'displayLabel': '۲۵۰ گرم',
+                'price': 100000,
+                'availablePackages': 4,
+              }
+            ],
+          }
+        ]),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
+    });
 
     final products = await CatalogApiClient(client: client, baseUrl: 'https://api.test').fetchProducts();
 
+    expect(requestedUri.path, '/api/v1/products/admin');
     expect(products, hasLength(1));
     expect(products.single.isWeight, isTrue);
+    expect(products.single.isPublished, isFalse);
     expect(products.single.totalStock, 4);
+  });
+
+  test('setPublication sends PATCH with requested state', () async {
+    late http.Request captured;
+    final client = MockClient((request) async {
+      captured = request;
+      return http.Response('', 204);
+    });
+
+    final api = CatalogApiClient(client: client, baseUrl: 'https://api.test');
+    await api.setPublication('akbari', true);
+
+    expect(captured.method, 'PATCH');
+    expect(captured.url.path, '/api/v1/products/akbari/publication');
+    expect(jsonDecode(captured.body), {'isPublished': true});
+  });
+
+  test('new products default to draft', () {
+    const command = CreateProductCommand(
+      title: 'کوکی',
+      slug: 'cookie',
+      category: 'سالم',
+      origin: 'نوشورا',
+      unitType: 'Count',
+      variants: [
+        CreateVariantCommand(sku: 'CK-1', quantity: 1, displayLabel: '۱ عدد', price: 1000, availablePackages: 2),
+      ],
+    );
+
+    expect(command.toJson()['isPublished'], isFalse);
   });
 
   test('createProduct surfaces Persian conflict message', () async {
@@ -47,13 +84,13 @@ void main() {
         ));
 
     final api = CatalogApiClient(client: client, baseUrl: 'https://api.test');
-    final command = CreateProductCommand(
+    const command = CreateProductCommand(
       title: 'کوکی',
       slug: 'cookie',
       category: 'سالم',
       origin: 'نوشورا',
       unitType: 'Count',
-      variants: const [
+      variants: [
         CreateVariantCommand(sku: 'CK-1', quantity: 1, displayLabel: '۱ عدد', price: 1000, availablePackages: 2),
       ],
     );
