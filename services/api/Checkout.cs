@@ -2,12 +2,16 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 public static class CheckoutModule
 {
     public static IServiceCollection AddCheckout(this IServiceCollection services)
     {
+        services.AddSingleton<CheckoutDatabase>();
         services.AddSingleton<CheckoutService>();
+        services.AddHostedService<CheckoutSchemaInitializer>();
+        services.AddHostedService<ReservationExpiryWorker>();
         return services;
     }
 
@@ -15,12 +19,16 @@ public static class CheckoutModule
     {
         var checkout = endpoints.MapGroup("/api/v1/checkout").WithTags("Checkout");
 
-        checkout.MapPost("/orders", (HttpRequest httpRequest, CheckoutRequest request, CheckoutService service) =>
+        checkout.MapPost("/orders", async (
+            HttpRequest httpRequest,
+            CheckoutRequest request,
+            CheckoutService service,
+            CancellationToken cancellationToken) =>
         {
             if (!httpRequest.Headers.TryGetValue("Idempotency-Key", out var values) || string.IsNullOrWhiteSpace(values.FirstOrDefault()))
                 return Results.BadRequest(new { message = "هدر Idempotency-Key برای جلوگیری از سفارش تکراری الزامی است." });
 
-            var result = service.Create(values.First()!, request);
+            var result = await service.CreateAsync(values.First()!, request, cancellationToken);
             return result.Status switch
             {
                 CheckoutStatus.Created => Results.Created($"/api/v1/checkout/orders/{result.Order!.Id}", result.Order),
@@ -31,8 +39,12 @@ public static class CheckoutModule
             };
         });
 
-        checkout.MapGet("/orders/{orderId:guid}", (Guid orderId, string receiptToken, CheckoutService service) =>
-            service.Find(orderId, receiptToken) is { } order
+        checkout.MapGet("/orders/{orderId:guid}", async (
+            Guid orderId,
+            string receiptToken,
+            CheckoutService service,
+            CancellationToken cancellationToken) =>
+            await service.FindAsync(orderId, receiptToken, cancellationToken) is { } order
                 ? Results.Ok(order)
                 : Results.NotFound(new { message = "سفارش پیدا نشد." }));
 
@@ -40,13 +52,16 @@ public static class CheckoutModule
     }
 }
 
-public sealed class CheckoutService(ProductCatalog catalog)
+public sealed class CheckoutService(ProductCatalog catalog, CheckoutDatabase database)
 {
     private readonly object _gate = new();
     private readonly ConcurrentDictionary<string, StoredCheckout> _idempotency = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Guid, CheckoutOrder> _orders = new();
 
-    public CheckoutResult Create(string idempotencyKey, CheckoutRequest request)
+    public async Task<CheckoutResult> CreateAsync(
+        string idempotencyKey,
+        CheckoutRequest request,
+        CancellationToken cancellationToken)
     {
         idempotencyKey = idempotencyKey.Trim();
         if (idempotencyKey.Length is < 12 or > 100)
@@ -56,6 +71,39 @@ public sealed class CheckoutService(ProductCatalog catalog)
         if (errors.Count > 0) return CheckoutResult.Invalid(errors);
 
         var fingerprint = Fingerprint(request);
+        if (!database.IsConfigured)
+            return CreateInMemory(idempotencyKey, fingerprint, request);
+
+        var persisted = await database.CreateAsync(idempotencyKey, fingerprint, request, cancellationToken);
+        if (persisted.Status == CheckoutStatus.Created && persisted.StockLevels is not null)
+        {
+            foreach (var item in persisted.StockLevels)
+                catalog.SetAvailablePackages(item.Sku, item.AvailablePackages);
+        }
+
+        return persisted.Status switch
+        {
+            CheckoutStatus.Created => CheckoutResult.Created(persisted.Order!),
+            CheckoutStatus.Replayed => CheckoutResult.Replayed(persisted.Order!),
+            CheckoutStatus.Conflict => CheckoutResult.Conflict(persisted.Message!),
+            CheckoutStatus.OutOfStock => CheckoutResult.OutOfStock(persisted.Message!, persisted.UnavailableSkus!),
+            _ => throw new InvalidOperationException("Unexpected persisted checkout result.")
+        };
+    }
+
+    public Task<CheckoutOrder?> FindAsync(Guid id, string receiptToken, CancellationToken cancellationToken)
+    {
+        if (database.IsConfigured)
+            return database.FindAsync(id, receiptToken, cancellationToken);
+
+        var found = _orders.TryGetValue(id, out var order) && FixedTimeTokenEquals(order.ReceiptToken, receiptToken)
+            ? order
+            : null;
+        return Task.FromResult(found);
+    }
+
+    private CheckoutResult CreateInMemory(string idempotencyKey, string fingerprint, CheckoutRequest request)
+    {
         if (_idempotency.TryGetValue(idempotencyKey, out var existing))
             return existing.Fingerprint == fingerprint
                 ? CheckoutResult.Replayed(existing.Order)
@@ -109,11 +157,12 @@ public sealed class CheckoutService(ProductCatalog catalog)
         }
     }
 
-    public CheckoutOrder? Find(Guid id, string receiptToken) =>
-        _orders.TryGetValue(id, out var order) && CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(order.ReceiptToken), Encoding.UTF8.GetBytes(receiptToken ?? string.Empty))
-                ? order
-                : null;
+    private static bool FixedTimeTokenEquals(string expectedToken, string? suppliedToken)
+    {
+        var expected = Encoding.UTF8.GetBytes(expectedToken);
+        var supplied = Encoding.UTF8.GetBytes(suppliedToken ?? string.Empty);
+        return expected.Length == supplied.Length && CryptographicOperations.FixedTimeEquals(expected, supplied);
+    }
 
     private static string Fingerprint(CheckoutRequest request)
     {
@@ -163,6 +212,7 @@ public sealed record CheckoutOrder(Guid Id, string ReceiptToken, string Customer
     decimal Subtotal, decimal Shipping, decimal Discount, decimal Payable, OrderState State, DateTimeOffset CreatedAt,
     DateTimeOffset ReservationExpiresAt, IReadOnlyCollection<OrderTransition> Transitions);
 public sealed record OrderTransition(OrderState State, string Actor, DateTimeOffset At, string Reason);
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OrderState { AwaitingPayment, Paid, Cancelled, Expired }
 public enum CheckoutStatus { Created, Replayed, Invalid, Conflict, OutOfStock }
 
