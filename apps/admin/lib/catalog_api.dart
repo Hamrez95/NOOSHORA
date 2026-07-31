@@ -25,8 +25,9 @@ class CatalogApiClient {
   final http.Client _client;
   final String baseUrl;
 
-  Future<List<Product>> fetchProducts() async {
-    final response = await _client.get(Uri.parse('$baseUrl/api/v1/products/'));
+  Future<List<Product>> fetchProducts({bool includeDrafts = true}) async {
+    final path = includeDrafts ? '/api/v1/products/admin' : '/api/v1/products/';
+    final response = await _client.get(Uri.parse('$baseUrl$path'));
     if (response.statusCode != 200) {
       throw CatalogApiException(_message(response), statusCode: response.statusCode);
     }
@@ -44,6 +45,17 @@ class CatalogApiClient {
       throw CatalogApiException(_message(response), statusCode: response.statusCode);
     }
     return Product.fromJson(jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<void> setPublication(String slug, bool isPublished) async {
+    final response = await _client.patch(
+      Uri.parse('$baseUrl/api/v1/products/$slug/publication'),
+      headers: const {'content-type': 'application/json; charset=utf-8'},
+      body: jsonEncode({'isPublished': isPublished}),
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw CatalogApiException(_message(response), statusCode: response.statusCode);
+    }
   }
 
   String _message(http.Response response) {
@@ -69,6 +81,7 @@ class Product {
     required this.category,
     required this.origin,
     required this.unitType,
+    required this.isPublished,
     required this.variants,
   });
 
@@ -78,6 +91,7 @@ class Product {
   final String category;
   final String origin;
   final String unitType;
+  final bool isPublished;
   final List<ProductVariant> variants;
 
   int get totalStock => variants.fold(0, (sum, item) => sum + item.availablePackages);
@@ -90,6 +104,7 @@ class Product {
         category: json['category'] as String,
         origin: json['origin'] as String,
         unitType: json['unitType'].toString(),
+        isPublished: json['isPublished'] as bool? ?? false,
         variants: (json['variants'] as List<dynamic>)
             .map((item) => ProductVariant.fromJson(item as Map<String, dynamic>))
             .toList(),
@@ -128,6 +143,7 @@ class CreateProductCommand {
     required this.origin,
     required this.unitType,
     required this.variants,
+    this.isPublished = false,
   });
 
   final String title;
@@ -136,6 +152,7 @@ class CreateProductCommand {
   final String origin;
   final String unitType;
   final List<CreateVariantCommand> variants;
+  final bool isPublished;
 
   Map<String, dynamic> toJson() => {
         'title': title,
@@ -144,7 +161,7 @@ class CreateProductCommand {
         'origin': origin,
         'currency': 'IRR',
         'unitType': unitType,
-        'isPublished': true,
+        'isPublished': isPublished,
         'variants': variants.map((item) => item.toJson()).toList(),
       };
 }
