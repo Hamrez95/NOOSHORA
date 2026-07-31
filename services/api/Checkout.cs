@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 public static class CheckoutModule
 {
@@ -211,6 +212,7 @@ public sealed record CheckoutOrder(Guid Id, string ReceiptToken, string Customer
     decimal Subtotal, decimal Shipping, decimal Discount, decimal Payable, OrderState State, DateTimeOffset CreatedAt,
     DateTimeOffset ReservationExpiresAt, IReadOnlyCollection<OrderTransition> Transitions);
 public sealed record OrderTransition(OrderState State, string Actor, DateTimeOffset At, string Reason);
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OrderState { AwaitingPayment, Paid, Cancelled, Expired }
 public enum CheckoutStatus { Created, Replayed, Invalid, Conflict, OutOfStock }
 
