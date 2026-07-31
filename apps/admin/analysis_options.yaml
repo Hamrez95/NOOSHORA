@@ -7,3 +7,5 @@ analyzer:
 linter:
   rules:
     curly_braces_in_flow_control_structures: false
+    use_null_aware_elements: false
+    unnecessary_underscores: false
