@@ -54,9 +54,9 @@ jobs:
           --health-retries 10
     env:
       ConnectionStrings__Catalog: Host=127.0.0.1;Port=5432;Database=nooshora;Username=nooshora;Password=nooshora_ci
-      Admin__OwnerEmail: ci-owner@nooshora.test
-      Admin__OwnerPasswordSha256: 43dd5a8b5cc3e17fcd37c7ccf9aa9206e422d75d66f4fc99cbf9adb66656d708
-      Admin__SigningKey: nooshora-ci-signing-key-must-be-long-and-private
+      Admin__Email: ci-owner@nooshora.test
+      Admin__PasswordHash: 43dd5a8b5cc3e17fcd37c7ccf9aa9206e422d75d66f4fc99cbf9adb66656d708
+      Admin__TokenSigningKey: nooshora-ci-signing-key-must-be-long-and-private
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
