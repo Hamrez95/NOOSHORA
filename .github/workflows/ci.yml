@@ -57,6 +57,7 @@ jobs:
       Admin__Email: ci-owner@nooshora.test
       Admin__PasswordHash: 43dd5a8b5cc3e17fcd37c7ccf9aa9206e422d75d66f4fc99cbf9adb66656d708
       Admin__TokenSigningKey: nooshora-ci-signing-key-must-be-long-and-private
+      Payments__SandboxEnabled: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -66,7 +67,7 @@ jobs:
         run: dotnet restore services/api/Nooshora.Api.csproj
       - name: Build
         run: dotnet build services/api/Nooshora.Api.csproj --configuration Release --no-restore
-      - name: Durable checkout contract
+      - name: Durable checkout and payment contract
         shell: bash
         run: |
           set -euo pipefail
@@ -106,6 +107,7 @@ jobs:
           replayed = json.load(open('/tmp/order-replayed.json', encoding='utf-8'))
           assert created['id'] == replayed['id'], 'idempotent retry created another order'
           assert created['payable'] == replayed['payable'], 'replayed total changed'
+          assert created['state'] == 'AwaitingPayment'
           open('/tmp/order-id', 'w').write(created['id'])
           open('/tmp/receipt-token', 'w').write(created['receiptToken'])
           PY
@@ -116,13 +118,43 @@ jobs:
           RECEIPT_TOKEN=$(cat /tmp/receipt-token)
           curl -fsS "http://127.0.0.1:5099/api/v1/checkout/orders/${ORDER_ID}?receiptToken=${RECEIPT_TOKEN}" \
             > /tmp/order-after-restart.json
+
+          curl -fsS -X POST "http://127.0.0.1:5099/api/v1/payments/orders/${ORDER_ID}/intent" \
+            -H 'Content-Type: application/json' \
+            --data "{\"receiptToken\":\"${RECEIPT_TOKEN}\"}" \
+            > /tmp/payment-intent.json
+          AUTHORITY=$(python3 -c "import json; print(json.load(open('/tmp/payment-intent.json'))['authority'])")
+
+          curl -fsS -X POST "http://127.0.0.1:5099/api/v1/payments/sandbox/${AUTHORITY}/complete" \
+            -H 'Content-Type: application/json' \
+            --data "{\"receiptToken\":\"${RECEIPT_TOKEN}\"}" \
+            > /tmp/payment-completed.json
+          curl -fsS -X POST "http://127.0.0.1:5099/api/v1/payments/sandbox/${AUTHORITY}/complete" \
+            -H 'Content-Type: application/json' \
+            --data "{\"receiptToken\":\"${RECEIPT_TOKEN}\"}" \
+            > /tmp/payment-replayed.json
+
           python3 - <<'PY'
           import json
-          created = json.load(open('/tmp/order-created.json', encoding='utf-8'))
-          restored = json.load(open('/tmp/order-after-restart.json', encoding='utf-8'))
-          assert created['id'] == restored['id'], 'order did not survive API restart'
-          assert restored['state'] == 'AwaitingPayment', 'unexpected order state after restart'
-          assert len(restored['transitions']) == 1, 'order transition history was not persisted'
+          order = json.load(open('/tmp/order-after-restart.json', encoding='utf-8'))
+          completed = json.load(open('/tmp/payment-completed.json', encoding='utf-8'))
+          replayed = json.load(open('/tmp/payment-replayed.json', encoding='utf-8'))
+          assert order['state'] == 'AwaitingPayment', 'order changed before payment'
+          assert completed['id'] == replayed['id'], 'callback replay changed payment identity'
+          assert completed['state'] == 'Succeeded', 'sandbox payment did not succeed'
+          assert completed['reference'], 'payment reference missing'
+          PY
+
+          stop_api
+          start_api
+          curl -fsS "http://127.0.0.1:5099/api/v1/checkout/orders/${ORDER_ID}?receiptToken=${RECEIPT_TOKEN}" \
+            > /tmp/order-paid-after-restart.json
+          python3 - <<'PY'
+          import json
+          paid = json.load(open('/tmp/order-paid-after-restart.json', encoding='utf-8'))
+          assert paid['state'] == 'Paid', 'paid state did not survive restart'
+          assert len(paid['transitions']) == 2, 'payment transition history was not persisted'
+          assert paid['transitions'][-1]['state'] == 'Paid'
           PY
 
   admin:

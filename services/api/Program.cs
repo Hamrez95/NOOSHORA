@@ -1,8 +1,11 @@
 using System.Collections.Concurrent;
+using System.Text.Json.Serialization;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProblemDetails();
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddCors(options => options.AddPolicy("Storefront", policy =>
 {
     var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
@@ -13,6 +16,7 @@ builder.Services.AddSingleton<ProductCatalog>();
 builder.Services.AddSingleton<CatalogDatabase>();
 builder.Services.AddAdminSecurity(builder.Configuration);
 builder.Services.AddCheckout();
+builder.Services.AddPayments();
 
 var app = builder.Build();
 app.UseExceptionHandler();
@@ -21,6 +25,7 @@ app.UseCors("Storefront");
 app.UseRateLimiter();
 app.MapAdminSecurity();
 app.MapCheckout();
+app.MapPayments();
 
 var catalog = app.Services.GetRequiredService<ProductCatalog>();
 var database = app.Services.GetRequiredService<CatalogDatabase>();
@@ -39,7 +44,11 @@ if (database.IsConfigured)
     }
 }
 
-app.MapGet("/health", async (CatalogDatabase db, AdminTokenService adminTokens, CancellationToken cancellationToken) =>
+app.MapGet("/health", async (
+    CatalogDatabase db,
+    AdminTokenService adminTokens,
+    PaymentDatabase paymentDatabase,
+    CancellationToken cancellationToken) =>
 {
     var databaseStatus = !db.IsConfigured ? "not-configured" :
         await db.CanConnectAsync(cancellationToken) ? "healthy" : "unhealthy";
@@ -50,6 +59,7 @@ app.MapGet("/health", async (CatalogDatabase db, AdminTokenService adminTokens, 
         service = "nooshora-api",
         database = databaseStatus,
         adminAuthentication = adminTokens.IsConfigured ? "configured" : "not-configured",
+        paymentSandbox = paymentDatabase.SandboxEnabled ? "enabled" : "disabled",
         utc = DateTimeOffset.UtcNow
     });
 });
