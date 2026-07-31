@@ -306,7 +306,7 @@ public sealed class PaymentDatabase(IConfiguration configuration, ILogger<Paymen
         return expected.Length == supplied.Length && CryptographicOperations.FixedTimeEquals(expected, supplied);
     }
 
-    private sealed record OrderPaymentSnapshot(Guid Id, string ReceiptToken, decimal Payable, string Currency,
+    private readonly record struct OrderPaymentSnapshot(Guid Id, string ReceiptToken, decimal Payable, string Currency,
         OrderState State, DateTimeOffset ReservationExpiresAt);
 }
 
