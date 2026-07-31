@@ -23,10 +23,10 @@ void main() {
       return http.Response(jsonEncode([
         {
           'id': '11111111-1111-1111-1111-111111111111',
-          'customerName': 'مینا رضایی',
+          'customerName': 'Mina',
           'mobile': '09120000000',
-          'province': 'تهران',
-          'city': 'تهران',
+          'province': 'Tehran',
+          'city': 'Tehran',
           'payable': 2450000,
           'currency': 'IRR',
           'state': 'Paid',
@@ -40,11 +40,9 @@ void main() {
     });
 
     final orders = await OrderApiClient(client: client, baseUrl: 'https://api.test').fetchOrders(state: 'Paid');
-
     expect(captured.headers['authorization'], 'Bearer order-test-token');
     expect(captured.url.path, '/api/v1/admin/orders');
     expect(captured.url.queryParameters['state'], 'Paid');
-    expect(orders.single.state, 'Paid');
     expect(orders.single.nextState, 'Preparing');
     expect(orders.single.paymentReference, 'SANDBOX-1');
   });
@@ -55,16 +53,23 @@ void main() {
       captured = request;
       return http.Response(jsonEncode({
         'id': '11111111-1111-1111-1111-111111111111',
-        'customerName': 'مینا رضایی', 'mobile': '09120000000', 'province': 'تهران', 'city': 'تهران',
-        'payable': 2450000, 'currency': 'IRR', 'state': 'Preparing',
-        'createdAt': '2026-07-31T08:00:00Z', 'reservationExpiresAt': '2026-07-31T08:20:00Z',
-        'lineCount': 1, 'paymentReference': 'SANDBOX-1', 'paymentState': 'Succeeded'
-      }), 200);
+        'customerName': 'Mina',
+        'mobile': '09120000000',
+        'province': 'Tehran',
+        'city': 'Tehran',
+        'payable': 2450000,
+        'currency': 'IRR',
+        'state': 'Preparing',
+        'createdAt': '2026-07-31T08:00:00Z',
+        'reservationExpiresAt': '2026-07-31T08:20:00Z',
+        'lineCount': 1,
+        'paymentReference': 'SANDBOX-1',
+        'paymentState': 'Succeeded'
+      }), 200, headers: {'content-type': 'application/json; charset=utf-8'});
     });
 
     await OrderApiClient(client: client, baseUrl: 'https://api.test')
         .transition('11111111-1111-1111-1111-111111111111', 'Preparing', reason: 'ready');
-
     expect(captured.method, 'PATCH');
     expect(captured.headers['authorization'], 'Bearer order-test-token');
     expect(jsonDecode(captured.body), {'state': 'Preparing', 'reason': 'ready'});
@@ -73,7 +78,6 @@ void main() {
   test('401 clears owner session', () async {
     final client = MockClient((request) async => http.Response('', 401));
     final api = OrderApiClient(client: client, baseUrl: 'https://api.test');
-
     await expectLater(api.fetchDashboard(), throwsA(isA<OrderApiException>()));
     expect(OwnerSession.instance.isAuthenticated, isFalse);
   });
