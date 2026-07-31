@@ -2,6 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nooshora_admin/professional_demo_main.dart';
 
+Future<void> signInToProfessionalDemo(WidgetTester tester) async {
+  await tester.tap(find.text('پرکردن خودکار'));
+  final Finder loginButton = find.text('ورود به پنل نمایشی');
+  await tester.ensureVisible(loginButton);
+  await tester.pumpAndSettle();
+  await tester.tap(loginButton);
+  await tester.pump(const Duration(milliseconds: 700));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('professional demo signs in and opens dashboard', (tester) async {
     tester.view.physicalSize = const Size(430, 900);
@@ -15,10 +25,7 @@ void main() {
     expect(find.text('ورود به پنل مدیریت'), findsOneWidget);
     expect(find.text('admin@nooshora.ir'), findsOneWidget);
 
-    await tester.tap(find.text('پرکردن خودکار'));
-    await tester.tap(find.text('ورود به پنل نمایشی'));
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pumpAndSettle();
+    await signInToProfessionalDemo(tester);
 
     expect(find.textContaining('سلام حمیدرضا'), findsOneWidget);
     expect(find.text('فروش ثبت‌شده'), findsOneWidget);
@@ -33,14 +40,14 @@ void main() {
 
     await tester.pumpWidget(const NooshoraProfessionalDemoApp());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('پرکردن خودکار'));
-    await tester.tap(find.text('ورود به پنل نمایشی'));
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pumpAndSettle();
+    await signInToProfessionalDemo(tester);
 
     await tester.tap(find.text('محصولات').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('محصول نمونه'));
+
+    final Finder addButton = find.text('محصول نمونه');
+    await tester.ensureVisible(addButton);
+    await tester.tap(addButton);
     await tester.pumpAndSettle();
 
     expect(find.textContaining('محصول نمایشی جدید'), findsOneWidget);
