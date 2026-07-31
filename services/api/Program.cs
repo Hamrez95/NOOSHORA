@@ -11,11 +11,14 @@ builder.Services.AddCors(options => options.AddPolicy("Storefront", policy =>
 }));
 builder.Services.AddSingleton<ProductCatalog>();
 builder.Services.AddSingleton<CatalogDatabase>();
+builder.Services.AddAdminSecurity(builder.Configuration);
 
 var app = builder.Build();
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseCors("Storefront");
+app.UseRateLimiter();
+app.MapAdminSecurity();
 
 var catalog = app.Services.GetRequiredService<ProductCatalog>();
 var database = app.Services.GetRequiredService<CatalogDatabase>();
@@ -34,7 +37,7 @@ if (database.IsConfigured)
     }
 }
 
-app.MapGet("/health", async (CatalogDatabase db, CancellationToken cancellationToken) =>
+app.MapGet("/health", async (CatalogDatabase db, AdminTokenService adminTokens, CancellationToken cancellationToken) =>
 {
     var databaseStatus = !db.IsConfigured ? "not-configured" :
         await db.CanConnectAsync(cancellationToken) ? "healthy" : "unhealthy";
@@ -44,6 +47,7 @@ app.MapGet("/health", async (CatalogDatabase db, CancellationToken cancellationT
         status = databaseStatus == "unhealthy" ? "degraded" : "healthy",
         service = "nooshora-api",
         database = databaseStatus,
+        adminAuthentication = adminTokens.IsConfigured ? "configured" : "not-configured",
         utc = DateTimeOffset.UtcNow
     });
 });
@@ -56,7 +60,8 @@ app.MapGet("/api/v1/catalog/unit-types", () => Results.Ok(new[]
 
 var products = app.MapGroup("/api/v1/products").WithTags("Products");
 products.MapGet("/", (ProductCatalog productCatalog) => Results.Ok(productCatalog.All()));
-products.MapGet("/admin", (ProductCatalog productCatalog) => Results.Ok(productCatalog.AllIncludingDrafts()));
+products.MapGet("/admin", (ProductCatalog productCatalog) => Results.Ok(productCatalog.AllIncludingDrafts()))
+    .AddEndpointFilter<OwnerAuthorizationFilter>();
 products.MapGet("/{slug}", (string slug, ProductCatalog productCatalog) =>
     productCatalog.FindPublishedBySlug(slug) is { } product
         ? Results.Ok(product)
@@ -86,7 +91,8 @@ products.MapPost("/", async (
     {
         return Results.Conflict(new { message = "شناسه آدرس یا SKU تکراری است." });
     }
-});
+})
+.AddEndpointFilter<OwnerAuthorizationFilter>();
 
 products.MapPatch("/{slug}/publication", async (
     string slug,
@@ -108,7 +114,8 @@ products.MapPatch("/{slug}/publication", async (
         message = request.IsPublished ? "محصول با موفقیت منتشر شد." : "محصول از فروشگاه خارج شد.",
         product = updated
     });
-});
+})
+.AddEndpointFilter<OwnerAuthorizationFilter>();
 
 app.Run();
 
