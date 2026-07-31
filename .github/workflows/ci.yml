@@ -38,6 +38,25 @@ jobs:
   api:
     name: API
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: nooshora
+          POSTGRES_PASSWORD: nooshora_ci
+          POSTGRES_DB: nooshora
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nooshora -d nooshora"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__Catalog: Host=127.0.0.1;Port=5432;Database=nooshora;Username=nooshora;Password=nooshora_ci
+      Admin__OwnerEmail: ci-owner@nooshora.test
+      Admin__OwnerPasswordSha256: 43dd5a8b5cc3e17fcd37c7ccf9aa9206e422d75d66f4fc99cbf9adb66656d708
+      Admin__SigningKey: nooshora-ci-signing-key-must-be-long-and-private
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -47,6 +66,64 @@ jobs:
         run: dotnet restore services/api/Nooshora.Api.csproj
       - name: Build
         run: dotnet build services/api/Nooshora.Api.csproj --configuration Release --no-restore
+      - name: Durable checkout contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          start_api() {
+            dotnet run --project services/api/Nooshora.Api.csproj --configuration Release --no-build --urls http://127.0.0.1:5099 > /tmp/nooshora-api.log 2>&1 &
+            API_PID=$!
+            export API_PID
+            for attempt in $(seq 1 40); do
+              if curl -fsS http://127.0.0.1:5099/health > /dev/null; then return 0; fi
+              sleep 1
+            done
+            cat /tmp/nooshora-api.log
+            return 1
+          }
+          stop_api() {
+            kill "$API_PID" || true
+            wait "$API_PID" || true
+          }
+          trap 'stop_api' EXIT
+          start_api
+
+          curl -fsS -X POST http://127.0.0.1:5099/api/v1/checkout/orders \
+            -H 'Content-Type: application/json' \
+            -H 'Idempotency-Key: ci-checkout-0001' \
+            --data '{"customerName":"تست CI","mobile":"09120000000","province":"تهران","city":"تهران","address":"نشانی تست قرارداد","postalCode":"1234567890","lines":[{"sku":"PI-AKB-250","quantity":1}]}' \
+            > /tmp/order-created.json
+
+          curl -fsS -X POST http://127.0.0.1:5099/api/v1/checkout/orders \
+            -H 'Content-Type: application/json' \
+            -H 'Idempotency-Key: ci-checkout-0001' \
+            --data '{"customerName":"تست CI","mobile":"09120000000","province":"تهران","city":"تهران","address":"نشانی تست قرارداد","postalCode":"1234567890","lines":[{"sku":"PI-AKB-250","quantity":1}]}' \
+            > /tmp/order-replayed.json
+
+          python3 - <<'PY'
+          import json
+          created = json.load(open('/tmp/order-created.json', encoding='utf-8'))
+          replayed = json.load(open('/tmp/order-replayed.json', encoding='utf-8'))
+          assert created['id'] == replayed['id'], 'idempotent retry created another order'
+          assert created['payable'] == replayed['payable'], 'replayed total changed'
+          open('/tmp/order-id', 'w').write(created['id'])
+          open('/tmp/receipt-token', 'w').write(created['receiptToken'])
+          PY
+
+          stop_api
+          start_api
+          ORDER_ID=$(cat /tmp/order-id)
+          RECEIPT_TOKEN=$(cat /tmp/receipt-token)
+          curl -fsS "http://127.0.0.1:5099/api/v1/checkout/orders/${ORDER_ID}?receiptToken=${RECEIPT_TOKEN}" \
+            > /tmp/order-after-restart.json
+          python3 - <<'PY'
+          import json
+          created = json.load(open('/tmp/order-created.json', encoding='utf-8'))
+          restored = json.load(open('/tmp/order-after-restart.json', encoding='utf-8'))
+          assert created['id'] == restored['id'], 'order did not survive API restart'
+          assert restored['state'] == 'AwaitingPayment', 'unexpected order state after restart'
+          assert len(restored['transitions']) == 1, 'order transition history was not persisted'
+          PY
 
   admin:
     name: Admin Flutter
