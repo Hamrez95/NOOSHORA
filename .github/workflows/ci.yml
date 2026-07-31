@@ -139,7 +139,7 @@ jobs:
           start_api
           curl -fsS "http://127.0.0.1:5099/api/v1/checkout/orders/${ORDER_ID}?receiptToken=${RECEIPT_TOKEN}" > /tmp/order-paid-after-restart.json
 
-          curl -fsS -X POST http://127.0.0.1:5099/api/v1/admin/login \
+          curl -fsS -X POST http://127.0.0.1:5099/api/v1/admin/auth/login \
             -H 'Content-Type: application/json' \
             --data '{"email":"ci-owner@nooshora.test","password":"Nooshora-CI-Owner-Password!"}' > /tmp/login.json
           TOKEN=$(python3 -c "import json; print(json.load(open('/tmp/login.json'))['accessToken'])")
