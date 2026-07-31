@@ -56,10 +56,11 @@ app.MapGet("/api/v1/catalog/unit-types", () => Results.Ok(new[]
 
 var products = app.MapGroup("/api/v1/products").WithTags("Products");
 products.MapGet("/", (ProductCatalog productCatalog) => Results.Ok(productCatalog.All()));
+products.MapGet("/admin", (ProductCatalog productCatalog) => Results.Ok(productCatalog.AllIncludingDrafts()));
 products.MapGet("/{slug}", (string slug, ProductCatalog productCatalog) =>
-    productCatalog.FindBySlug(slug) is { } product
+    productCatalog.FindPublishedBySlug(slug) is { } product
         ? Results.Ok(product)
-        : Results.NotFound(new { message = "محصول پیدا نشد." }));
+        : Results.NotFound(new { message = "محصول پیدا نشد یا هنوز منتشر نشده است." }));
 
 products.MapPost("/", async (
     CreateProductRequest request,
@@ -85,6 +86,28 @@ products.MapPost("/", async (
     {
         return Results.Conflict(new { message = "شناسه آدرس یا SKU تکراری است." });
     }
+});
+
+products.MapPatch("/{slug}/publication", async (
+    string slug,
+    SetProductPublicationRequest request,
+    ProductCatalog productCatalog,
+    CatalogDatabase db,
+    CancellationToken cancellationToken) =>
+{
+    var existing = productCatalog.FindBySlug(slug);
+    if (existing is null)
+        return Results.NotFound(new { message = "محصول موردنظر پیدا نشد." });
+
+    var updated = existing with { IsPublished = request.IsPublished };
+    await db.SetPublicationAsync(existing.Id, request.IsPublished, cancellationToken);
+    productCatalog.Add(updated);
+
+    return Results.Ok(new
+    {
+        message = request.IsPublished ? "محصول با موفقیت منتشر شد." : "محصول از فروشگاه خارج شد.",
+        product = updated
+    });
 });
 
 app.Run();
@@ -114,6 +137,7 @@ public sealed class ProductCatalog
     public IReadOnlyCollection<Product> All() => AllIncludingDrafts().Where(item => item.IsPublished).ToArray();
     public IReadOnlyCollection<Product> AllIncludingDrafts() => _products.Values.OrderBy(item => item.Category).ThenBy(item => item.Title).ToArray();
     public Product? FindBySlug(string slug) => _products.Values.FirstOrDefault(item => item.Slug.Equals(slug, StringComparison.OrdinalIgnoreCase));
+    public Product? FindPublishedBySlug(string slug) => _products.Values.FirstOrDefault(item => item.IsPublished && item.Slug.Equals(slug, StringComparison.OrdinalIgnoreCase));
     public bool SlugExists(string slug) => _products.Values.Any(item => item.Slug.Equals(slug.Trim(), StringComparison.OrdinalIgnoreCase));
     public bool SkuExists(IEnumerable<string> skus)
     {
@@ -176,4 +200,5 @@ public sealed record CreateProductRequest(string Title, string Slug, string Cate
     }
 }
 public sealed record CreateProductVariantRequest(string Sku, decimal Quantity, string DisplayLabel, decimal Price, int AvailablePackages);
+public sealed record SetProductPublicationRequest(bool IsPublished);
 public partial class Program;
